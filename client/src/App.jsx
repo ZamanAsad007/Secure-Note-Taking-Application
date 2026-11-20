@@ -1,122 +1,87 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Header } from './components/Header';
+import { Snackbar } from './components/Snackbar';
+import { AuthPage } from './pages/AuthPage';
+import { NotesPage } from './pages/NotesPage';
+import { PostsPage } from './pages/PostsPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminAllNotesPage } from './pages/AdminAllNotesPage';
+import { AdminInterestsPage } from './pages/AdminInterestsPage';
 
-function App() {
-  const [count, setCount] = useState(0)
+const AppContent = () => {
+  const { user, loading, isAdmin } = useAuth();
+  const [currentTab, setCurrentTab] = useState('notes');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--bg-color)] gap-4 transition-colors">
+        <div className="w-12 h-12 rounded-full border-4 border-[var(--primary-light)] border-t-[var(--primary)] animate-spin"></div>
+        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] font-medium">
+          <span className="material-symbols-outlined text-[18px] text-[var(--primary)]">lock</span>
+          <span>Verifying encrypted session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <AuthPage />
+        <Snackbar />
+      </>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="min-h-screen flex flex-col bg-[var(--bg-color)] text-[var(--text-color)] transition-colors duration-200">
+      {/* Top App Header & Tab Navigation */}
+      <Header currentTab={currentTab} onSelectTab={setCurrentTab} />
 
-      <div className="ticks"></div>
+      {/* Main Tab Content */}
+      <div className="flex-1">
+        {currentTab === 'notes' && <NotesPage />}
+        {currentTab === 'posts' && <PostsPage />}
+        {currentTab === 'profile' && <ProfilePage />}
+        {isAdmin && currentTab === 'all-notes' && <AdminAllNotesPage />}
+        {isAdmin && currentTab === 'users' && (
+          <AdminUsersPage
+            onNavigateToPosts={(userId) => {
+              setCurrentTab('posts');
+            }}
+          />
+        )}
+        {isAdmin && currentTab === 'interests' && <AdminInterestsPage />}
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* System Footer matching Stitch spec */}
+      <footer className="w-full bg-[var(--header-bg)] border-t border-[var(--card-border)] py-4 transition-colors">
+        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+          <span>© 2024 Secure Notes. All data encrypted with client-side master key.</span>
+          <div className="flex items-center gap-4">
+            <span className="text-[var(--tertiary)] flex items-center gap-1 font-medium">
+              <span className="material-symbols-outlined text-[14px]">verified_user</span>
+              AES-256
+            </span>
+            <span>M3 System v2.4</span>
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </footer>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Global Snackbar */}
+      <Snackbar />
+    </div>
+  );
+};
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
