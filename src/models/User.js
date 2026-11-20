@@ -53,11 +53,10 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre('save', function (next) {
+userSchema.pre('save', function () {
   if (this.isModified('interests') && Array.isArray(this.interests)) {
     this.interests = normalizeInterests(this.interests);
   }
-  next();
 });
 
 // Supports login lookup by email and email uniqueness

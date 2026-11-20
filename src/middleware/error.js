@@ -27,7 +27,8 @@ const errorHandler = (err, req, res, next) => {
   // Handle Zod validation error
   if (err.name === 'ZodError') {
     statusCode = 400;
-    message = err.errors ? err.errors.map((e) => e.message).join(', ') : 'Validation error';
+    const issues = err.issues || err.errors || [];
+    message = issues.length > 0 ? issues.map((e) => e.message).join(', ') : err.message;
   }
 
   // Ensure stack traces are never exposed in responses
