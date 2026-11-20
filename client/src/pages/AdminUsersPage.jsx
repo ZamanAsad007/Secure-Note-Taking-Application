@@ -330,9 +330,9 @@ export const AdminUsersPage = ({ onNavigateToPosts }) => {
                               {onNavigateToPosts && (
                                 <button
                                   type="button"
-                                  onClick={() => onNavigateToPosts(u._id)}
-                                  className="p-1.5 rounded-full hover:bg-[var(--card-low)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                                  title="View posts by this user"
+                                  onClick={() => onNavigateToPosts(u._id, u.name)}
+                                  className="p-1.5 rounded-full hover:bg-[var(--card-low)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors cursor-pointer"
+                                  title={`View posts by ${u.name}`}
                                 >
                                   <span className="material-symbols-outlined text-[18px]">forum</span>
                                 </button>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const PostsPage = () => {
+export const PostsPage = ({ initialAuthor }) => {
   const { user, showStatus } = useAuth();
 
   // Create Post state
@@ -11,8 +11,8 @@ export const PostsPage = () => {
   const [publishing, setPublishing] = useState(false);
 
   // Browse Posts by User state (Scenario 2)
-  const [targetUserId, setTargetUserId] = useState('');
-  const [inputQuery, setInputQuery] = useState('');
+  const [targetUserId, setTargetUserId] = useState(initialAuthor?.id || initialAuthor?.name || user?._id || '');
+  const [inputQuery, setInputQuery] = useState(initialAuthor?.name || initialAuthor?.id || user?.name || user?._id || '');
   const [postsData, setPostsData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -43,11 +43,18 @@ export const PostsPage = () => {
 
   useEffect(() => {
     fetchAuthors();
-    if (user?._id) {
+  }, []);
+
+  // Update selection whenever initialAuthor changes or on first user load
+  useEffect(() => {
+    if (initialAuthor?.id) {
+      setTargetUserId(initialAuthor.id);
+      setInputQuery(initialAuthor.name || initialAuthor.id);
+    } else if (user?._id && !targetUserId) {
       setTargetUserId(user._id);
       setInputQuery(user.name || user._id);
     }
-  }, [user]);
+  }, [initialAuthor, user]);
 
   // Load posts for target user (by ObjectId, email, or name)
   const fetchUserPosts = async (identifier, page = 1) => {
