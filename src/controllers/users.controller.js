@@ -177,6 +177,101 @@ const deleteUserById = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'User and associated data deleted successfully' });
 });
 
+/**
+ * Scenario 1: Group users by interests (admin only).
+ * Uses exactly ONE User.aggregate() call.
+ */
+const getUsersByInterests = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const interest = req.query.interest ? req.query.interest.trim().toLowerCase() : null;
+
+  const pipeline = [];
+  if (interest) pipeline.push({ $match: { interests: interest } }); // uses index #2
+  pipeline.push({ $unwind: '$interests' });
+  if (interest) pipeline.push({ $match: { interests: interest } }); // keep only the requested group
+  pipeline.push(
+    {
+      $group: {
+        _id: '$interests',
+        count: { $sum: 1 },
+        users: { $push: { _id: '$_id', name: '$name', email: '$email' } }
+      }
+    },
+    { $sort: { _id: 1 } },
+    {
+      $facet: {
+        data: [{ $skip: skip }, { $limit: limit }],
+        total: [{ $count: 'count' }]
+      }
+    }
+  );
+
+  const [result] = await User.aggregate(pipeline);
+
+  const data = result?.data ?? [];
+  const total = result?.total?.[0]?.count ?? 0;
+
+  res.status(200).json(formatPaginatedResponse({
+    data,
+    page,
+    limit,
+    total
+  }));
+});
+
+/**
+ * Scenario 2: Posts of a user (any authenticated user).
+ * Uses a single aggregation pipeline with $lookup.
+ * Fetches limit + 1 posts to compute hasMore without a second query.
+ */
+const getUserPosts = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ error: 'Invalid user ID format' });
+  }
+
+  const { page, limit, skip } = getPagination(req.query);
+
+  const [doc] = await User.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(id) } }, // default _id index
+    {
+      $lookup: {
+        from: Post.collection.name,
+        localField: '_id',
+        foreignField: 'author', // uses index #4
+        pipeline: [
+          { $sort: { _id: -1 } },
+          { $skip: skip },
+          { $limit: limit + 1 },
+          { $project: { title: 1, content: 1, createdAt: 1 } }
+        ],
+        as: 'posts'
+      }
+    },
+    { $project: { name: 1, posts: 1 } }
+  ]);
+
+  if (!doc) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const rawPosts = doc.posts || [];
+  const hasMore = rawPosts.length > limit;
+  const posts = rawPosts.slice(0, limit);
+
+  res.status(200).json({
+    name: doc.name,
+    posts,
+    hasMore,
+    pagination: {
+      page,
+      limit,
+      hasMore
+    }
+  });
+});
+
 module.exports = {
   getMe,
   updateMe,
@@ -184,5 +279,7 @@ module.exports = {
   createUser,
   getUserById,
   updateUserById,
-  deleteUserById
+  deleteUserById,
+  getUsersByInterests,
+  getUserPosts
 };

@@ -23,10 +23,12 @@ app.get('/api/health', (req, res) => {
 const authRoutes = require('./routes/auth.routes');
 const notesRoutes = require('./routes/notes.routes');
 const usersRoutes = require('./routes/users.routes');
+const postsRoutes = require('./routes/posts.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/posts', postsRoutes);
 
 // 404 handler
 app.use(notFound);
