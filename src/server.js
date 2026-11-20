@@ -7,7 +7,8 @@ let server;
 async function startServer() {
   try {
     await mongoose.connect(config.MONGODB_URI);
-    console.log(`Connected to MongoDB at ${config.MONGODB_URI}`);
+    const sanitizedUri = config.MONGODB_URI.replace(/:([^:@]+)@/, ':****@');
+    console.log(`Connected to MongoDB at ${sanitizedUri}`);
 
     server = app.listen(config.PORT, () => {
       console.log(`Server listening on port ${config.PORT}`);
