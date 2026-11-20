@@ -21,7 +21,10 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 const authRoutes = require('./routes/auth.routes');
+const notesRoutes = require('./routes/notes.routes');
+
 app.use('/api/auth', authRoutes);
+app.use('/api/notes', notesRoutes);
 
 // 404 handler
 app.use(notFound);
