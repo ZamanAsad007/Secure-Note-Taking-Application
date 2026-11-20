@@ -232,14 +232,29 @@ const getUsersByInterests = asyncHandler(async (req, res) => {
 const getUserPosts = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid user ID format' });
+  let targetId;
+  if (id === 'me') {
+    targetId = req.user._id;
+  } else if (mongoose.Types.ObjectId.isValid(id)) {
+    targetId = new mongoose.Types.ObjectId(id);
+  } else {
+    // User-friendly author lookup by email or exact name
+    const foundUser = await User.findOne({
+      $or: [
+        { email: id.toLowerCase().trim() },
+        { name: new RegExp(`^${id.trim()}$`, 'i') }
+      ]
+    });
+    if (!foundUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    targetId = foundUser._id;
   }
 
   const { page, limit, skip } = getPagination(req.query);
 
   const [doc] = await User.aggregate([
-    { $match: { _id: new mongoose.Types.ObjectId(id) } }, // default _id index
+    { $match: { _id: targetId } }, // default _id index
     {
       $lookup: {
         from: Post.collection.name,
