@@ -9,7 +9,9 @@ const {
   createUser,
   getUserById,
   updateUserById,
-  deleteUserById
+  deleteUserById,
+  getUsersByInterests,
+  getUserPosts
 } = require('../controllers/users.controller');
 
 const router = express.Router();
@@ -58,9 +60,15 @@ router.use(authenticate);
 router.get('/me', getMe);
 router.patch('/me', validate(updateMeSchema), updateMe);
 
+// Scenario 1: Users grouped by interests (admin only, declared before /:id)
+router.get('/by-interests', authorize('admin'), getUsersByInterests);
+
 // Admin-only list and create
 router.get('/', authorize('admin'), listUsers);
 router.post('/', authorize('admin'), validate(createUserSchema), createUser);
+
+// Scenario 2: Posts of a user (any authenticated user, declared before /:id)
+router.get('/:id/posts', getUserPosts);
 
 // Parameterized routes
 router.get('/:id', getUserById);
