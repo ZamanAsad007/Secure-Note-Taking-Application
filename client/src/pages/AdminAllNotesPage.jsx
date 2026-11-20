@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const AdminAllNotesPage = () => {
+export const AdminAllNotesPage = ({ onNavigateToPosts }) => {
   const { showStatus } = useAuth();
 
   const [notes, setNotes] = useState([]);
@@ -268,11 +268,25 @@ export const AdminAllNotesPage = () => {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex items-center justify-between pt-2">
+              {onNavigateToPosts ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ownerId = typeof inspectedNote.owner === 'object' ? inspectedNote.owner._id : inspectedNote.owner;
+                    setInspectedNote(null);
+                    onNavigateToPosts(ownerId);
+                  }}
+                  className="px-4 py-2 rounded-full bg-[var(--card-low)] hover:bg-[var(--card-border)] text-xs text-[var(--text-color)] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">forum</span>
+                  <span>View Author Posts</span>
+                </button>
+              ) : <div></div>}
               <button
                 type="button"
                 onClick={() => setInspectedNote(null)}
-                className="px-5 py-2 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-xs font-medium"
+                className="px-5 py-2 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-xs font-medium cursor-pointer"
               >
                 Close Inspection
               </button>

@@ -13,6 +13,12 @@ import { AdminInterestsPage } from './pages/AdminInterestsPage';
 const AppContent = () => {
   const { user, loading, isAdmin } = useAuth();
   const [currentTab, setCurrentTab] = useState('notes');
+  const [selectedPostAuthor, setSelectedPostAuthor] = useState(null);
+
+  const handleNavigateToPosts = (userId, userName) => {
+    setSelectedPostAuthor({ id: userId, name: userName });
+    setCurrentTab('posts');
+  };
 
   if (loading) {
     return (
@@ -38,22 +44,38 @@ const AppContent = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-color)] text-[var(--text-color)] transition-colors duration-200">
       {/* Top App Header & Tab Navigation */}
-      <Header currentTab={currentTab} onSelectTab={setCurrentTab} />
+      <Header
+        currentTab={currentTab}
+        onSelectTab={(tab) => {
+          if (tab === 'posts') setSelectedPostAuthor(null);
+          setCurrentTab(tab);
+        }}
+      />
 
       {/* Main Tab Content */}
       <div className="flex-1">
         {currentTab === 'notes' && <NotesPage />}
-        {currentTab === 'posts' && <PostsPage />}
-        {currentTab === 'profile' && <ProfilePage />}
-        {isAdmin && currentTab === 'all-notes' && <AdminAllNotesPage />}
-        {isAdmin && currentTab === 'users' && (
-          <AdminUsersPage
-            onNavigateToPosts={(userId) => {
-              setCurrentTab('posts');
-            }}
+        {currentTab === 'posts' && (
+          <PostsPage
+            initialAuthor={selectedPostAuthor}
           />
         )}
-        {isAdmin && currentTab === 'interests' && <AdminInterestsPage />}
+        {currentTab === 'profile' && <ProfilePage />}
+        {isAdmin && currentTab === 'all-notes' && (
+          <AdminAllNotesPage
+            onNavigateToPosts={handleNavigateToPosts}
+          />
+        )}
+        {isAdmin && currentTab === 'users' && (
+          <AdminUsersPage
+            onNavigateToPosts={handleNavigateToPosts}
+          />
+        )}
+        {isAdmin && currentTab === 'interests' && (
+          <AdminInterestsPage
+            onNavigateToPosts={handleNavigateToPosts}
+          />
+        )}
       </div>
 
       {/* System Footer */}

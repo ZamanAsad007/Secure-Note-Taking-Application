@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const AdminInterestsPage = () => {
+export const AdminInterestsPage = ({ onNavigateToPosts }) => {
   const { showStatus } = useAuth();
 
   const [interestGroups, setInterestGroups] = useState([]);
@@ -202,9 +202,21 @@ export const AdminInterestsPage = () => {
                             </div>
                             <span className="font-medium text-[var(--text-color)]">{usr.name}</span>
                           </div>
-                          <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                            {usr.email}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                              {usr.email}
+                            </span>
+                            {onNavigateToPosts && (
+                              <button
+                                type="button"
+                                onClick={() => onNavigateToPosts(usr._id, usr.name)}
+                                className="p-1 rounded-full hover:bg-[var(--card-bg)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors cursor-pointer"
+                                title={`View posts by ${usr.name}`}
+                              >
+                                <span className="material-symbols-outlined text-[15px]">forum</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
