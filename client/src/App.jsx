@@ -56,16 +56,16 @@ const AppContent = () => {
         {isAdmin && currentTab === 'interests' && <AdminInterestsPage />}
       </div>
 
-      {/* System Footer matching Stitch spec */}
+      {/* System Footer */}
       <footer className="w-full bg-[var(--header-bg)] border-t border-[var(--card-border)] py-4 transition-colors">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-          <span>© 2024 Secure Notes. All data encrypted with client-side master key.</span>
+          <span>Secure Notes — Encrypted Vault & Public Community Timeline</span>
           <div className="flex items-center gap-4">
             <span className="text-[var(--tertiary)] flex items-center gap-1 font-medium">
               <span className="material-symbols-outlined text-[14px]">verified_user</span>
-              AES-256
+              End-to-End Encrypted
             </span>
-            <span>M3 System v2.4</span>
+            <span>AES-256</span>
           </div>
         </div>
       </footer>
