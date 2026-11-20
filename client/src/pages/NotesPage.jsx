@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const NotesPage = () => {
-  const { showStatus } = useAuth();
+  const { user, showStatus } = useAuth();
 
   const [notes, setNotes] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 9, total: 0, totalPages: 1 });
@@ -27,7 +27,8 @@ export const NotesPage = () => {
   const fetchNotes = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await api(`/api/notes?page=${page}&limit=${pagination.limit}`);
+      const ownerParam = user?._id ? `&owner=${user._id}` : '&owner=me';
+      const res = await api(`/api/notes?page=${page}&limit=${pagination.limit}${ownerParam}`);
       setNotes(res.data || []);
       setPagination(res.pagination || { page: 1, limit: pagination.limit, total: 0, totalPages: 1 });
     } catch (err) {
@@ -39,7 +40,7 @@ export const NotesPage = () => {
 
   useEffect(() => {
     fetchNotes(pagination.page);
-  }, [pagination.page]);
+  }, [pagination.page, user?._id]);
 
   const openNewDialog = () => {
     setDialogMode('new');
@@ -114,50 +115,60 @@ export const NotesPage = () => {
   });
 
   return (
-    <div className="max-w-[1100px] mx-auto p-4 sm:p-6 transition-colors duration-200">
-      {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-4 border-b border-[var(--card-border)]">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-color)]">
-              My Notes
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-[var(--card-low)] border border-[var(--card-border)] text-xs font-semibold text-[var(--text-muted)]">
-              Encrypted
-            </span>
-          </div>
-          <p className="text-sm text-[var(--text-muted)] mt-1 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[var(--tertiary)]"></span>
-            <span>{pagination.total} private notes in your vault</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Search bar */}
-          <div className="relative hidden md:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[20px]">
-              search
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notes..."
-              className="h-10 pl-10 pr-4 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] text-sm text-[var(--text-color)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] w-60 shadow-sm"
-            />
+    <main className="w-full pt-[114px] bg-[var(--bg-color)] min-h-[calc(100vh-64px)] pb-12 transition-colors duration-200">
+      <div className="max-w-[1100px] mx-auto p-4 sm:p-6">
+        {/* Header Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-[var(--card-border)]">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-color)]">
+                My Notes
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-[var(--card-low)] border border-[var(--card-border)] text-xs font-semibold text-[var(--text-muted)]">
+                Encrypted Vault
+              </span>
+            </div>
+            <p className="text-sm text-[var(--text-muted)] mt-1 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[var(--tertiary)]"></span>
+              <span>{pagination.total} private notes in your vault</span>
+            </p>
           </div>
 
-          {/* New note button */}
-          <button
-            onClick={openNewDialog}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-sm font-semibold shadow hover:bg-[var(--primary-hover)] transition-all cursor-pointer"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-            <span>New note</span>
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search bar - visible on all screens */}
+            <div className="relative flex-1 sm:w-64">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[20px]">
+                search
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search notes..."
+                className="w-full h-10 pl-10 pr-8 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] text-xs text-[var(--text-color)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] shadow-xs transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-color)] p-0.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* New note button */}
+            <button
+              onClick={openNewDialog}
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-xs font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>New note</span>
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Loading */}
       {loading ? (
@@ -450,6 +461,7 @@ export const NotesPage = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </main>
   );
 };

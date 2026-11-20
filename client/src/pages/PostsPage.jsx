@@ -12,41 +12,50 @@ export const PostsPage = () => {
 
   // Browse Posts by User state (Scenario 2)
   const [targetUserId, setTargetUserId] = useState('');
-  const [inputUserId, setInputUserId] = useState('');
+  const [inputQuery, setInputQuery] = useState('');
   const [postsData, setPostsData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [lookupError, setLookupError] = useState(null);
 
-  // Quick user chips for easy demonstration
-  const [knownUsers, setKnownUsers] = useState([]);
+  // Authors list for quick selection
+  const [authors, setAuthors] = useState([]);
+  const [loadingAuthors, setLoadingAuthors] = useState(false);
 
-  // Fetch users list if possible or set default chips
+  const fetchAuthors = async () => {
+    setLoadingAuthors(true);
+    try {
+      const res = await api('/api/posts/authors');
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setAuthors(res.data);
+      }
+    } catch {
+      // Fallback: If authors endpoint fails, try /api/users
+      api('/api/users?limit=8')
+        .then((uRes) => {
+          if (uRes.data) setAuthors(uRes.data);
+        })
+        .catch(() => {});
+    } finally {
+      setLoadingAuthors(false);
+    }
+  };
+
   useEffect(() => {
-    // Attempt to fetch users for quick select if admin, or load own ID
+    fetchAuthors();
     if (user?._id) {
       setTargetUserId(user._id);
-      setInputUserId(user._id);
+      setInputQuery(user.name || user._id);
     }
-    // Also try to list users for convenience chips
-    api('/api/users?limit=6')
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setKnownUsers(res.data);
-        }
-      })
-      .catch(() => {
-        // Not admin or users endpoint not accessible, non-issue
-      });
   }, [user]);
 
-  // Load posts for target user
-  const fetchUserPosts = async (userId, page = 1) => {
-    if (!userId) return;
+  // Load posts for target user (by ObjectId, email, or name)
+  const fetchUserPosts = async (identifier, page = 1) => {
+    if (!identifier) return;
     setLoadingPosts(true);
     setLookupError(null);
     try {
-      const res = await api(`/api/users/${userId}/posts?page=${page}&limit=5`);
+      const res = await api(`/api/users/${encodeURIComponent(identifier)}/posts?page=${page}&limit=5`);
       setPostsData(res);
       setCurrentPage(page);
     } catch (err) {
@@ -65,11 +74,16 @@ export const PostsPage = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (!inputUserId.trim()) {
-      showStatus('Please enter a user ID', true);
+    if (!inputQuery.trim()) {
+      showStatus('Please enter an author name, email, or user ID', true);
       return;
     }
-    setTargetUserId(inputUserId.trim());
+    setTargetUserId(inputQuery.trim());
+  };
+
+  const selectAuthor = (author) => {
+    setInputQuery(author.name || author._id);
+    setTargetUserId(author._id);
   };
 
   const handlePublish = async (e) => {
@@ -92,8 +106,9 @@ export const PostsPage = () => {
       setPostTitle('');
       setPostContent('');
 
-      // If we are currently viewing our own posts, refresh
-      if (targetUserId === user?._id) {
+      // Refresh authors list and active author feed
+      fetchAuthors();
+      if (targetUserId === user?._id || targetUserId === user?.name) {
         fetchUserPosts(user._id, 1);
       }
     } catch (err) {
@@ -107,6 +122,12 @@ export const PostsPage = () => {
     navigator.clipboard?.writeText?.(`${title}\n\n${content}`);
     showStatus('Post snippet copied to clipboard');
   };
+
+  // Helper to extract author name & posts list regardless of response wrapper
+  const currentAuthorName = postsData?.name || postsData?.data?.name || 'Author';
+  const currentAuthorId = postsData?._id || postsData?.data?._id || targetUserId;
+  const postsList = postsData?.posts || postsData?.data?.posts || [];
+  const hasMorePosts = postsData?.hasMore ?? postsData?.pagination?.hasMore ?? false;
 
   return (
     <main className="w-full pt-[114px] bg-[var(--bg-color)] min-h-[calc(100vh-64px)] pb-12 transition-colors duration-200">
@@ -206,7 +227,7 @@ export const PostsPage = () => {
                       <span className="text-xs text-[var(--text-muted)]">Author: {user?.name}</span>
                     </div>
                     <button
-                      className="h-10 px-6 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-sm font-medium flex items-center gap-2 shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+                      className="h-10 px-6 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-sm font-medium flex items-center gap-2 shadow-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                       disabled={publishing}
                       type="submit"
                     >
@@ -237,7 +258,7 @@ export const PostsPage = () => {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] pt-1">
                   <span className="material-symbols-outlined text-[14px] text-[var(--tertiary)]">check_circle</span>
-                  <span>Paginated via limit+1 hasMore cursor aggregation</span>
+                  <span>Single-pipeline $lookup with limit+1 cursor pagination</span>
                 </div>
               </div>
             </div>
@@ -252,74 +273,106 @@ export const PostsPage = () => {
                       <span className="material-symbols-outlined text-[18px]">badge</span>
                     </div>
                     <div>
-                      <h2 className="text-base font-semibold text-[var(--text-color)]">Browse posts by user</h2>
-                      <p className="text-xs text-[var(--text-muted)]">Single-pipeline aggregate lookup by author ID</p>
+                      <h2 className="text-base font-semibold text-[var(--text-color)]">Browse posts by author</h2>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Select an active author or search by name, email, or ID
+                      </p>
                     </div>
                   </div>
 
                   {user?._id && (
                     <button
                       onClick={() => {
-                        setInputUserId(user._id);
+                        setInputQuery(user.name || user._id);
                         setTargetUserId(user._id);
                       }}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--primary-light)] text-[var(--primary-light-text)] hover:opacity-90 transition-all self-start"
+                      className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--primary-light)] text-[var(--primary-light-text)] hover:opacity-90 transition-all self-start cursor-pointer flex items-center gap-1"
                       type="button"
                     >
-                      My Posts
+                      <span className="material-symbols-outlined text-[14px]">person</span>
+                      <span>My Posts</span>
                     </button>
                   )}
                 </div>
 
-                {/* Quick select chips for seeded users */}
-                {knownUsers.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-xs text-[var(--text-muted)] mr-1">Quick Select:</span>
-                    {knownUsers.map((u) => (
-                      <button
-                        key={u._id}
-                        type="button"
-                        onClick={() => {
-                          setInputUserId(u._id);
-                          setTargetUserId(u._id);
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                          targetUserId === u._id
-                            ? 'bg-[var(--primary)] text-[var(--primary-text)]'
-                            : 'bg-[var(--card-low)] text-[var(--text-color)] hover:bg-[var(--card-border)]'
-                        }`}
-                      >
-                        {u.name}
-                      </button>
-                    ))}
+                {/* Active Authors Quick-Select Chips (Available to ALL users) */}
+                <div className="flex flex-col gap-2 pt-1">
+                  <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span className="font-semibold uppercase tracking-wider text-[11px]">
+                      Active Authors in Community:
+                    </span>
+                    {loadingAuthors && (
+                      <span className="text-[10px] animate-pulse">Updating authors...</span>
+                    )}
                   </div>
-                )}
 
-                {/* Search Form Row */}
-                <form className="flex flex-col gap-1.5 pt-1" onSubmit={handleSearchSubmit}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {authors.length === 0 ? (
+                      <span className="text-xs text-[var(--text-muted)] italic">
+                        No published authors yet. Publish a post to be listed!
+                      </span>
+                    ) : (
+                      authors.map((author) => {
+                        const isSelected =
+                          targetUserId === author._id ||
+                          targetUserId === author.name ||
+                          targetUserId === author.email;
+                        return (
+                          <button
+                            key={author._id}
+                            type="button"
+                            onClick={() => selectAuthor(author)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer shadow-2xs ${
+                              isSelected
+                                ? 'bg-[var(--primary)] text-[var(--primary-text)] font-semibold shadow-sm'
+                                : 'bg-[var(--card-low)] text-[var(--text-color)] border border-[var(--card-border)] hover:bg-[var(--card-border)]'
+                            }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px] font-bold">
+                              {author.name?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                            <span>{author.name}</span>
+                            {author.postCount !== undefined && (
+                              <span
+                                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-black/5 text-[var(--text-muted)]'
+                                }`}
+                              >
+                                {author.postCount}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Search Form Row (Search by Name, Email, or User ID) */}
+                <form className="flex flex-col gap-1.5 pt-2" onSubmit={handleSearchSubmit}>
                   <label className="text-xs font-semibold text-[var(--text-color)] uppercase tracking-wider" htmlFor="userIdInput">
-                    Target User ID
+                    Search Author by Name, Email, or ID
                   </label>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <div className="relative flex-1">
                       <input
                         id="userIdInput"
-                        className="w-full h-11 pl-10 pr-3.5 rounded-lg bg-[var(--card-low)] border border-[var(--card-border)] text-[var(--text-color)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] transition-colors font-mono"
-                        placeholder="Paste User ObjectId..."
-                        value={inputUserId}
-                        onChange={(e) => setInputUserId(e.target.value)}
+                        className="w-full h-11 pl-10 pr-3.5 rounded-lg bg-[var(--card-low)] border border-[var(--card-border)] text-[var(--text-color)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] transition-colors"
+                        placeholder="Type author name (e.g. Alice), email, or paste ID..."
+                        value={inputQuery}
+                        onChange={(e) => setInputQuery(e.target.value)}
                         type="text"
                       />
                       <span className="material-symbols-outlined text-[var(--text-muted)] absolute left-3 top-2.5 text-[20px]">
-                        fingerprint
+                        search
                       </span>
                     </div>
                     <button
-                      className="h-11 px-5 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 transition-all whitespace-nowrap"
+                      className="h-11 px-5 rounded-full bg-[var(--primary)] text-[var(--primary-text)] text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
                       type="submit"
                     >
-                      <span className="material-symbols-outlined text-[18px]">search</span>
-                      <span>Load posts</span>
+                      <span className="material-symbols-outlined text-[18px]">manage_search</span>
+                      <span>Find Posts</span>
                     </button>
                   </div>
                 </form>
@@ -332,13 +385,13 @@ export const PostsPage = () => {
                     <span className="material-symbols-outlined text-3xl animate-spin text-[var(--primary)]">
                       refresh
                     </span>
-                    <span className="text-sm text-[var(--text-muted)]">Aggregating posts by user...</span>
+                    <span className="text-sm text-[var(--text-muted)]">Aggregating posts by author...</span>
                   </div>
                 ) : lookupError ? (
                   <div className="flex items-start gap-3 p-4 rounded-xl bg-[var(--error-bg)] text-[var(--error-text)] border border-[var(--error)]/20">
                     <span className="material-symbols-outlined text-[24px]">error</span>
                     <div className="flex flex-col gap-1 flex-1">
-                      <span className="font-semibold text-sm">User Not Found or Error</span>
+                      <span className="font-semibold text-sm">Author Not Found</span>
                       <p className="text-xs opacity-90">{lookupError}</p>
                     </div>
                   </div>
@@ -348,10 +401,10 @@ export const PostsPage = () => {
                       manage_search
                     </span>
                     <span className="text-sm font-medium text-[var(--text-color)]">
-                      Select or enter a user ID to inspect their posts
+                      Select an author from above or search to view their posts
                     </span>
                   </div>
-                ) : postsData.data?.posts?.length === 0 ? (
+                ) : postsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl bg-[var(--card-low)] text-center gap-3 border border-[var(--card-border)]">
                     <div className="w-12 h-12 rounded-full bg-[var(--card-bg)] flex items-center justify-center text-[var(--text-muted)] shadow-sm">
                       <span className="material-symbols-outlined text-[24px]">post_add</span>
@@ -361,7 +414,7 @@ export const PostsPage = () => {
                         This user has no posts yet
                       </span>
                       <p className="text-xs text-[var(--text-muted)] max-w-sm">
-                        {postsData.data?.name || 'This participant'} has not published any public timeline records yet.
+                        {currentAuthorName} has not published any public timeline records yet.
                       </p>
                     </div>
                   </div>
@@ -371,29 +424,29 @@ export const PostsPage = () => {
                     <div className="flex items-center justify-between bg-[var(--card-low)] p-4 rounded-xl border border-[var(--card-border)]">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-[var(--primary-text)] font-semibold text-base">
-                          {postsData.data?.name?.[0]?.toUpperCase() || 'U'}
+                          {currentAuthorName?.[0]?.toUpperCase() || 'U'}
                         </div>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-sm text-[var(--text-color)]">
-                              Posts by {postsData.data?.name}
+                              Posts by {currentAuthorName}
                             </h3>
                             <span className="px-2 py-0.5 rounded bg-[var(--primary-light)] text-[var(--primary-light-text)] text-xs font-semibold">
-                              {postsData.data?.role || 'Contributor'}
+                              Verified Author
                             </span>
                           </div>
                           <span className="text-xs text-[var(--text-muted)] font-mono">
-                            {postsData.data?._id}
+                            {currentAuthorId}
                           </span>
                         </div>
                       </div>
                       <span className="px-3 py-1 rounded-full bg-[var(--card-bg)] text-[var(--text-color)] text-xs font-medium border border-[var(--card-border)] shadow-sm">
-                        {postsData.data?.posts?.length} displayed
+                        {postsList.length} loaded
                       </span>
                     </div>
 
                     {/* Posts List */}
-                    {postsData.data?.posts?.map((post) => (
+                    {postsList.map((post) => (
                       <article
                         key={post._id}
                         className="bg-[var(--card-bg)] p-5 rounded-xl border border-[var(--card-border)] shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2"
@@ -404,7 +457,7 @@ export const PostsPage = () => {
                           </h4>
                           <button
                             onClick={() => copyShareLink(post.title, post.content)}
-                            className="text-[var(--text-muted)] hover:text-[var(--text-color)] p-1 rounded-full transition-colors"
+                            className="text-[var(--text-muted)] hover:text-[var(--text-color)] p-1 rounded-full transition-colors cursor-pointer"
                             title="Copy post content"
                             type="button"
                           >
@@ -426,7 +479,7 @@ export const PostsPage = () => {
                             })}
                           </span>
                           <span className="px-2 py-0.5 rounded-full bg-[var(--card-low)] text-[var(--primary)] text-xs font-medium">
-                            #post
+                            #encrypted
                           </span>
                         </div>
                       </article>
@@ -437,7 +490,7 @@ export const PostsPage = () => {
                       <button
                         onClick={() => fetchUserPosts(targetUserId, currentPage - 1)}
                         disabled={currentPage <= 1}
-                        className="px-3.5 py-1.5 rounded-full bg-[var(--card-bg)] text-[var(--text-color)] text-xs font-medium border border-[var(--card-border)] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all"
+                        className="px-3.5 py-1.5 rounded-full bg-[var(--card-bg)] text-[var(--text-color)] text-xs font-medium border border-[var(--card-border)] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all cursor-pointer"
                         type="button"
                       >
                         <span className="material-symbols-outlined text-[16px]">chevron_left</span>
@@ -451,8 +504,8 @@ export const PostsPage = () => {
                       </div>
                       <button
                         onClick={() => fetchUserPosts(targetUserId, currentPage + 1)}
-                        disabled={!postsData.pagination?.hasMore}
-                        className="px-3.5 py-1.5 rounded-full bg-[var(--card-bg)] text-[var(--primary)] text-xs font-medium border border-[var(--card-border)] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all hover:bg-[var(--card-low)]"
+                        disabled={!hasMorePosts}
+                        className="px-3.5 py-1.5 rounded-full bg-[var(--card-bg)] text-[var(--primary)] text-xs font-medium border border-[var(--card-border)] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all hover:bg-[var(--card-low)] cursor-pointer"
                         type="button"
                       >
                         <span>Next</span>

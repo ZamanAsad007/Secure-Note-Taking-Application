@@ -31,10 +31,16 @@ const listNotes = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.user.role === 'admin') {
     if (req.query.owner) {
-      if (!mongoose.Types.ObjectId.isValid(req.query.owner)) {
-        return res.status(400).json({ error: 'Invalid owner ID format' });
+      if (req.query.owner === 'me' || req.query.owner === req.user._id.toString()) {
+        filter.owner = req.user._id;
+      } else {
+        if (!mongoose.Types.ObjectId.isValid(req.query.owner)) {
+          return res.status(400).json({ error: 'Invalid owner ID format' });
+        }
+        filter.owner = req.query.owner;
       }
-      filter.owner = req.query.owner;
+    } else if (req.query.mine === 'true') {
+      filter.owner = req.user._id;
     }
   } else {
     filter.owner = req.user._id;
