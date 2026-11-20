@@ -208,7 +208,12 @@ const getUsersByInterests = asyncHandler(async (req, res) => {
 
   const [result] = await User.aggregate(pipeline);
 
-  const data = result?.data ?? [];
+  const rawData = result?.data ?? [];
+  const data = rawData.map((item) => ({
+    ...item,
+    interest: item._id,
+    userCount: item.count
+  }));
   const total = result?.total?.[0]?.count ?? 0;
 
   res.status(200).json(formatPaginatedResponse({
@@ -261,9 +266,15 @@ const getUserPosts = asyncHandler(async (req, res) => {
   const posts = rawPosts.slice(0, limit);
 
   res.status(200).json({
+    _id: id,
     name: doc.name,
     posts,
     hasMore,
+    data: {
+      _id: id,
+      name: doc.name,
+      posts
+    },
     pagination: {
       page,
       limit,
